@@ -204,33 +204,9 @@ export default function WorkspacePage() {
   };
 
   const handleRenderSubtitle = async () => {
-    if (!taskId) return;
-    setIsGenerating(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/subtitles/render", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task_id: taskId,
-          config: {
-            style: selectedSubtitleStyle,
-            position: subtitlePosition,
-            fontSize: subtitleFontSize,
-            fontColor: subtitleFontColor,
-          },
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "字幕渲染失败");
-      }
-      setSubtitleRendered(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "字幕渲染失败，请重试");
-    } finally {
-      setIsGenerating(false);
-    }
+    if (!lipsyncVideoUrl) return;
+    // 字幕由客户端 SubtitlePreview 组件实时渲染，无需服务端处理
+    setSubtitleRendered(true);
   };
 
   const togglePlayAudio = () => {
@@ -950,20 +926,11 @@ export default function WorkspacePage() {
 
                 <button
                   onClick={handleRenderSubtitle}
-                  disabled={isGenerating || !lipsyncGenerated}
+                  disabled={!lipsyncGenerated || !lipsyncVideoUrl}
                   className="btn-primary flex w-full items-center justify-center gap-2 py-3 disabled:opacity-50"
                 >
-                  {isGenerating ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      渲染中...
-                    </>
-                  ) : (
-                    <>
-                      <Palette className="h-4 w-4" />
-                      渲染字幕
-                    </>
-                  )}
+                  <Palette className="h-4 w-4" />
+                  应用字幕
                 </button>
               </div>
             </div>
