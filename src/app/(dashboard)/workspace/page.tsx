@@ -251,24 +251,73 @@ export default function WorkspacePage() {
     setIsUploadingVideo(true);
     setError(null);
     try {
-      const formData = new FormData();
-      formData.append("video", file);
+      // 分片上传（每片 < 4MB，绕过 Vercel Serverless body 限制）
+      const CHUNK_SIZE = 4 * 1024 * 1024;
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
-      const res = await fetch("/api/videos/upload", {
+      // 1. 初始化
+      const initRes = await fetch("/api/videos/upload", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "init",
+          filename: file.name,
+          filetype: file.type,
+          totalSize: file.size,
+          totalChunks,
+        }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "视频上传失败");
+      if (!initRes.ok) {
+        const data = await initRes.json();
+        throw new Error(data.error || "初始化上传失败");
       }
-      const data = await res.json();
+      const { upload_id } = await initRes.json();
+
+      // 2. 逐片上传
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+        const base64 = await chunk.arrayBuffer().then((buf) => Buffer.from(buf).toString("base64"));
+
+        const chunkRes = await fetch("/api/videos/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "chunk",
+            upload_id,
+            chunk_index: i,
+            data: base64,
+          }),
+        });
+        if (!chunkRes.ok) {
+          const data = await chunkRes.json();
+          throw new Error(data.error || `分片 ${i + 1} 上传失败`);
+        }
+      }
+
+      // 3. 完成：服务端合并并转存 Replicate
+      const completeRes = await fetch("/api/videos/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "complete",
+          upload_id,
+          filename: file.name,
+          filetype: file.type,
+          totalChunks,
+        }),
+      });
+      if (!completeRes.ok) {
+        const data = await completeRes.json();
+        throw new Error(data.error || "视频处理失败");
+      }
+      const data = await completeRes.json();
       setUploadedVideoUrl(data.public_url);
     } catch (err) {
       setError(err instanceof Error ? err.message : "视频上传失败，请重试");
     } finally {
       setIsUploadingVideo(false);
-      // reset input so same file can be re-selected
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -694,7 +743,7 @@ export default function WorkspacePage() {
                 <>
                   <Upload className="mx-auto mb-4 h-12 w-12 text-[#64748b]" />
                   <p className="mb-2 font-medium text-white">拖拽视频文件到此处，或点击上传</p>
-                  <p className="text-sm text-[#64748b]">支持 MP4、MOV、WebM，最大 50MB，建议 2-10 秒、720p-1080p</p>
+                  <p className="text-sm text-[#64748b]">支持 MP4、MOV、WebM，最大 200MB，建议 2-10 秒、720p-1080p</p>
                   <button onClick={() => fileInputRef.current?.click()} className="btn-secondary mt-4 px-6 py-2 text-sm">选择文件</button>
                 </>
               )}
