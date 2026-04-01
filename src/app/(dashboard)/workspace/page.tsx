@@ -107,6 +107,8 @@ export default function WorkspacePage() {
   const [estimatedDuration, setEstimatedDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [audioGenerated, setAudioGenerated] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [lipsyncVideoUrl, setLipsyncVideoUrl] = useState<string | null>(null);
   const [lipsyncGenerated, setLipsyncGenerated] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -163,6 +165,8 @@ export default function WorkspacePage() {
         const data = await res.json();
         throw new Error(data.error || "语音生成失败");
       }
+      const data = await res.json();
+      setAudioUrl(data.audio_url);
       setAudioGenerated(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "语音合成失败，请重试");
@@ -172,7 +176,7 @@ export default function WorkspacePage() {
   };
 
   const handleLipSync = async () => {
-    if (!taskId || !uploadedVideoUrl) return;
+    if (!taskId || !uploadedVideoUrl || !audioUrl) return;
     setIsGenerating(true);
     setError(null);
     try {
@@ -182,12 +186,15 @@ export default function WorkspacePage() {
         body: JSON.stringify({
           task_id: taskId,
           uploaded_video_url: uploadedVideoUrl,
+          audio_url: audioUrl,
         }),
       });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error || "对口型合成失败");
       }
+      const data = await res.json();
+      setLipsyncVideoUrl(data.video_url);
       setLipsyncGenerated(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "对口型合成失败，请重试");
@@ -227,7 +234,7 @@ export default function WorkspacePage() {
   };
 
   const togglePlayAudio = () => {
-    if (!audioRef.current || !taskId) return;
+    if (!audioRef.current || !audioUrl) return;
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
@@ -597,9 +604,9 @@ export default function WorkspacePage() {
                 {/* Preview */}
                 <label className="text-sm font-medium text-[#94a3b8]">试听预览</label>
                 <div className="glass-sm rounded-xl p-4">
-                  {audioGenerated && taskId ? (
+                  {audioGenerated && audioUrl ? (
                     <>
-                      <audio ref={audioRef} src={`/api/tasks/${taskId}/download?type=audio`} onEnded={() => setIsPlaying(false)} />
+                      <audio ref={audioRef} src={audioUrl} onEnded={() => setIsPlaying(false)} />
                       <div className="flex items-center gap-3">
                         <button
                           onClick={togglePlayAudio}
@@ -719,13 +726,14 @@ export default function WorkspacePage() {
             </div>
 
             {/* Video Preview after lip-sync */}
-            {lipsyncGenerated && taskId && (
+            {lipsyncGenerated && lipsyncVideoUrl && (
               <div className="glass-sm rounded-xl overflow-hidden">
                 <div className="p-3 flex items-center justify-between border-b border-[rgba(255,255,255,0.06)]">
                   <span className="text-sm font-medium text-[#34d399]">合成完成</span>
                   <a
-                    href={`/api/tasks/${taskId}/download?type=final&download=true`}
+                    href={lipsyncVideoUrl}
                     download
+                    target="_blank"
                     className="flex items-center gap-1.5 text-xs text-[#8b83ff] hover:text-[#a59dff] transition-colors"
                   >
                     <Download className="h-3.5 w-3.5" />
@@ -734,7 +742,7 @@ export default function WorkspacePage() {
                 </div>
                 <div className="flex items-center justify-center bg-black/30">
                   <video
-                    src={`/api/tasks/${taskId}/download?type=final`}
+                    src={lipsyncVideoUrl}
                     controls
                     className="max-h-[320px] w-auto max-w-full"
                   />
@@ -760,14 +768,15 @@ export default function WorkspacePage() {
             </div>
 
             {/* Video Preview with Subtitles */}
-            {lipsyncGenerated && taskId ? (
+            {lipsyncGenerated && lipsyncVideoUrl ? (
               <div className="glass-sm rounded-xl overflow-hidden">
                 <div className="p-3 flex items-center justify-between border-b border-[rgba(255,255,255,0.06)]">
                   <span className="text-sm font-medium text-[#94a3b8]">实时预览（播放查看字幕效果）</span>
                   {subtitleRendered && (
                     <a
-                      href={`/api/tasks/${taskId}/download?type=final&download=true`}
+                      href={lipsyncVideoUrl}
                       download
+                      target="_blank"
                       className="flex items-center gap-1.5 text-xs text-[#34d399] hover:text-[#4ade80] transition-colors"
                     >
                       <Download className="h-3.5 w-3.5" />
@@ -776,7 +785,7 @@ export default function WorkspacePage() {
                   )}
                 </div>
                 <SubtitlePreview
-                  videoSrc={`/api/tasks/${taskId}/download?type=final`}
+                  videoSrc={lipsyncVideoUrl}
                   text={generatedText}
                   duration={videoDuration || estimatedDuration}
                   style={selectedSubtitleStyle as any}
@@ -929,9 +938,9 @@ export default function WorkspacePage() {
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               {/* Video Preview */}
               <div className="glass-sm rounded-xl overflow-hidden">
-                {taskId ? (
+                {lipsyncVideoUrl ? (
                   <video
-                    src={`/api/tasks/${taskId}/download?type=final`}
+                    src={lipsyncVideoUrl}
                     controls
                     className="w-full max-h-[500px]"
                   />
@@ -964,9 +973,10 @@ export default function WorkspacePage() {
                 </div>
 
                 <a
-                  href={taskId ? `/api/tasks/${taskId}/download?type=final&download=true` : "#"}
+                  href={lipsyncVideoUrl || "#"}
+                  target="_blank"
                   className="btn-primary flex w-full items-center justify-center gap-2 py-4 text-lg glow-accent"
-                  download={!lipsyncGenerated}
+                  download={!!lipsyncVideoUrl}
                 >
                   <Download className="h-5 w-5" />
                   下载成片

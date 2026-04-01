@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateAudio, uploadFile } from "@/lib/replicate";
-import { updateTask, stepToProgress } from "@/lib/tasks";
-import { downloadAndConvertAudio } from "@/lib/ffmpeg";
+import { generateAudio } from "@/lib/replicate";
 import type { AudioGenerateRequest, AudioGenerateResponse } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
@@ -15,49 +13,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const taskId = body.task_id || crypto.randomUUID();
-
-    if (body.task_id) {
-      updateTask(taskId, {
-        status: "audio_generating",
-        currentStep: "audio",
-        progress: 30,
-      });
-    }
-
-    // 1. 调用 Replicate TTS，获取公开 URL
+    // 调用 Replicate TTS，获取公开 URL
     const audioPublicUrl = await generateAudio({
       text: body.text,
       voice_id: body.voice_id,
       speed: body.speed,
     });
 
-    // 2. 下载并转换为 WAV（本地备份，用于下载接口）
-    const localAudioPath = await downloadAndConvertAudio(audioPublicUrl, taskId);
-
-    // 3. 如果需要，将转换后的 WAV 也上传到 Replicate（供 lipsync 使用）
-    let lipsyncAudioUrl = audioPublicUrl;
-    try {
-      lipsyncAudioUrl = await uploadFile(localAudioPath);
-    } catch (uploadErr) {
-      console.warn("上传音频到 Replicate 失败，将使用 TTS 原始 URL:", uploadErr);
-      // 回退使用 TTS 原始 URL
-    }
-
-    if (body.task_id) {
-      updateTask(taskId, {
-        audioUrl: localAudioPath,
-        audioPublicUrl: lipsyncAudioUrl,
-        currentStep: "audio",
-        progress: stepToProgress("audio"),
-        status: "pending",
-      });
-    }
-
     const response: AudioGenerateResponse = {
       id: crypto.randomUUID(),
-      task_id: taskId,
-      audio_url: `/api/tasks/${taskId}/download?type=audio`,
+      task_id: body.task_id || crypto.randomUUID(),
+      audio_url: audioPublicUrl,
       duration: 0,
       status: "completed",
     };
