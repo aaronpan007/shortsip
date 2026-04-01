@@ -251,8 +251,8 @@ export default function WorkspacePage() {
     setIsUploadingVideo(true);
     setError(null);
     try {
-      // 分片上传（每片 < 4MB，绕过 Vercel Serverless body 限制）
-      const CHUNK_SIZE = 4 * 1024 * 1024;
+      // 分片上传（每片 2.5MB，base64 后约 3.3MB JSON body，安全低于 Vercel 4.5MB 限制）
+      const CHUNK_SIZE = 2.5 * 1024 * 1024;
       const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
 
       // 1. 初始化
