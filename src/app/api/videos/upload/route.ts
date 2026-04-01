@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { uploadFile } from "@/lib/replicate";
-import { ensureTempDir, getTempFilePath } from "@/lib/ffmpeg";
-import fs from "fs/promises";
-import path from "path";
-import crypto from "crypto";
+import Replicate from "replicate";
 
-const TEMP_DIR = "/tmp/shortsipagent";
-
-const ALLOWED_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
-const MAX_SIZE = 500 * 1024 * 1024; // 500MB
+const ALLOWED_TYPES = ["video/mp4", "video/quicktime", "video/webm", "video/x-msvideo"];
+const MAX_SIZE = 50 * 1024 * 1024; // 50MB（Vercel Serverless body 限制）
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,31 +22,27 @@ export async function POST(request: NextRequest) {
 
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
-        { error: "文件大小超过 500MB 限制" },
+        { error: `文件大小超过 ${MAX_SIZE / 1024 / 1024}MB 限制（Vercel 部署限制）` },
         { status: 400 }
       );
     }
 
-    await ensureTempDir();
+    // 直接将文件 buffer 上传到 Replicate，不写本地磁盘
+    const replicate = new Replicate({
+      auth: process.env.REPLICATE_API_TOKEN!,
+    });
 
-    // 保存到本地临时目录
-    const fileId = crypto.randomUUID();
-    const ext = path.extname(file.name) || ".mp4";
-    const localPath = path.join(TEMP_DIR, `${fileId}${ext}`);
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-    await fs.writeFile(localPath, buffer);
-
-    // 上传到 Replicate 获取公开 URL
-    const publicUrl = await uploadFile(localPath);
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const uploaded = await replicate.files.create(fileBuffer, {
+      filename: file.name,
+    });
 
     return NextResponse.json({
-      id: fileId,
+      id: uploaded.id,
       filename: file.name,
       size: file.size,
       type: file.type,
-      local_path: localPath,
-      public_url: publicUrl,
+      public_url: uploaded.urls.get,
     });
   } catch (error) {
     console.error("Video upload error:", error);

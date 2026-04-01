@@ -694,7 +694,7 @@ export default function WorkspacePage() {
                 <>
                   <Upload className="mx-auto mb-4 h-12 w-12 text-[#64748b]" />
                   <p className="mb-2 font-medium text-white">拖拽视频文件到此处，或点击上传</p>
-                  <p className="text-sm text-[#64748b]">支持 MP4、MOV、WebM，最大 500MB，建议 2-10 秒、720p-1080p</p>
+                  <p className="text-sm text-[#64748b]">支持 MP4、MOV、WebM，最大 50MB，建议 2-10 秒、720p-1080p</p>
                   <button onClick={() => fileInputRef.current?.click()} className="btn-secondary mt-4 px-6 py-2 text-sm">选择文件</button>
                 </>
               )}
