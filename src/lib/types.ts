@@ -54,6 +54,20 @@ export interface LipSyncResponse {
   status: "completed";
 }
 
+export interface LipSyncCreateResponse {
+  id: string;
+  task_id: string;
+  prediction_id: string;
+  status: "starting" | "processing" | "succeeded" | "failed" | "canceled";
+}
+
+export interface LipSyncPollResponse {
+  prediction_id: string;
+  status: "starting" | "processing" | "succeeded" | "failed" | "canceled";
+  video_url?: string;
+  error?: string;
+}
+
 // ============ 任务管理 ============
 
 export type TaskStatus =

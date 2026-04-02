@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { clsx } from "clsx";
 import SubtitlePreview from "@/components/SubtitlePreview";
 import {
@@ -110,6 +110,8 @@ export default function WorkspacePage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [lipsyncVideoUrl, setLipsyncVideoUrl] = useState<string | null>(null);
   const [lipsyncGenerated, setLipsyncGenerated] = useState(false);
+  const [lipsyncStatus, setLipsyncStatus] = useState<string | null>(null);
+  const lipsyncPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -175,10 +177,48 @@ export default function WorkspacePage() {
     }
   };
 
+  const stopPolling = () => {
+    if (lipsyncPollRef.current) {
+      clearInterval(lipsyncPollRef.current);
+      lipsyncPollRef.current = null;
+    }
+  };
+
+  const pollPrediction = async (predictionId: string) => {
+    try {
+      const res = await fetch(
+        `/api/lipsync?prediction_id=${encodeURIComponent(predictionId)}`
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "查询状态失败");
+      }
+      const data = await res.json();
+      setLipsyncStatus(data.status);
+
+      if (data.status === "succeeded") {
+        stopPolling();
+        setLipsyncVideoUrl(data.video_url);
+        setLipsyncGenerated(true);
+        setIsGenerating(false);
+      } else if (data.status === "failed" || data.status === "canceled") {
+        stopPolling();
+        setError(data.error || `对口型合成${data.status === "canceled" ? "已取消" : "失败"}，请重试`);
+        setIsGenerating(false);
+      }
+    } catch (err) {
+      console.error("Lipsync poll error:", err);
+    }
+  };
+
   const handleLipSync = async () => {
     if (!taskId || !uploadedVideoUrl || !audioUrl) return;
     setIsGenerating(true);
     setError(null);
+    setLipsyncStatus(null);
+    setLipsyncGenerated(false);
+    setLipsyncVideoUrl(null);
+
     try {
       const res = await fetch("/api/lipsync", {
         method: "POST",
@@ -191,17 +231,30 @@ export default function WorkspacePage() {
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "对口型合成失败");
+        throw new Error(data.error || "对口型合成创建失败");
       }
       const data = await res.json();
-      setLipsyncVideoUrl(data.video_url);
-      setLipsyncGenerated(true);
+      const predictionId = data.prediction_id;
+      setLipsyncStatus(data.status);
+
+      // 立即查询一次
+      pollPrediction(predictionId);
+
+      // 每 3 秒轮询一次
+      stopPolling();
+      lipsyncPollRef.current = setInterval(() => {
+        pollPrediction(predictionId);
+      }, 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "对口型合成失败，请重试");
-    } finally {
       setIsGenerating(false);
     }
   };
+
+  // 组件卸载时清除轮询
+  useEffect(() => {
+    return () => stopPolling();
+  }, []);
 
   const handleRenderSubtitle = async () => {
     if (!lipsyncVideoUrl) return;
@@ -739,7 +792,11 @@ export default function WorkspacePage() {
                 {isGenerating ? (
                   <>
                     <RefreshCw className="h-4 w-4 animate-spin" />
-                    合成中...
+                    {lipsyncStatus === "starting"
+                      ? "启动中..."
+                      : lipsyncStatus === "processing"
+                        ? "合成中（AI 处理中，请勿关闭页面）..."
+                        : "合成中..."}
                   </>
                 ) : (
                   <>

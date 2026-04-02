@@ -170,7 +170,7 @@ export async function generateLipSync(params: {
 /**
  * 从 Replicate 模型输出中提取 URL
  */
-function extractUrlFromOutput(output: unknown): string {
+export function extractUrlFromOutput(output: unknown): string {
   if (typeof output === "string" && output.startsWith("http")) return output;
 
   if (output && typeof output === "object") {
@@ -192,4 +192,43 @@ function extractUrlFromOutput(output: unknown): string {
   }
 
   throw new Error(`无法从模型输出中提取 URL: ${JSON.stringify(output)}`);
+}
+
+/**
+ * 创建对口型 prediction（不等待完成）
+ * 返回 Replicate prediction 对象，包含 id 和初始 status
+ */
+export async function createLipSyncPrediction(params: {
+  audio_url: string;
+  video_url: string;
+}): Promise<{ id: string; status: string }> {
+  const prediction = await replicate.predictions.create({
+    model: "kwaivgi/kling-lip-sync",
+    input: {
+      audio_file: params.audio_url,
+      video_url: params.video_url,
+    },
+  });
+  return { id: prediction.id, status: prediction.status };
+}
+
+/**
+ * 查询对口型 prediction 的当前状态
+ * 返回完整的 Prediction 对象
+ */
+export async function getLipSyncPrediction(predictionId: string): Promise<{
+  id: string;
+  status: string;
+  output: unknown;
+  error: unknown;
+  logs: string | null;
+}> {
+  const prediction = await replicate.predictions.get(predictionId);
+  return {
+    id: prediction.id,
+    status: prediction.status,
+    output: prediction.output,
+    error: prediction.error,
+    logs: prediction.logs ?? null,
+  };
 }
