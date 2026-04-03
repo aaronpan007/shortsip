@@ -201,6 +201,19 @@ export default function WorkspacePage() {
         setLipsyncVideoUrl(data.video_url);
         setLipsyncGenerated(true);
         setIsGenerating(false);
+        // 更新 DB 中的 composite_task
+        if (taskId) {
+          fetch("/api/tasks", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: taskId,
+              final_video_url: data.video_url,
+              status: "completed",
+              current_step: "completed",
+            }),
+          }).catch(console.error);
+        }
       } else if (data.status === "failed" || data.status === "canceled") {
         stopPolling();
         setError(data.error || `对口型合成${data.status === "canceled" ? "已取消" : "失败"}，请重试`);

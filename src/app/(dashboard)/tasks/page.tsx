@@ -28,6 +28,7 @@ interface Task {
   createdAt: string;
   progress: number;
   errorMessage?: string;
+  lipsyncVideoUrl?: string | null;
 }
 
 const stepLabels: Record<string, string> = {
@@ -243,13 +244,13 @@ export default function TasksPage() {
                       重试
                     </button>
                   )}
-                  {task.status === "completed" && (
+                  {task.status === "completed" && task.lipsyncVideoUrl && (
                     <>
-                      <a href={`/api/tasks/${task.id}/download`} target="_blank" className="btn-secondary flex items-center gap-1.5 text-xs px-3 py-1.5">
+                      <a href={task.lipsyncVideoUrl} target="_blank" className="btn-secondary flex items-center gap-1.5 text-xs px-3 py-1.5">
                         <Eye className="h-3 w-3" />
                         预览
                       </a>
-                      <a href={`/api/tasks/${task.id}/download`} download className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5">
+                      <a href={task.lipsyncVideoUrl} download className="btn-primary flex items-center gap-1.5 text-xs px-3 py-1.5">
                         <Download className="h-3 w-3" />
                         下载
                       </a>

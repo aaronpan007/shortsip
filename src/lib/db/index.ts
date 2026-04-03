@@ -85,8 +85,8 @@ export interface UserVideoRow {
 export interface LipSyncTaskRow {
   id: string;
   user_id: string;
-  audio_gen_id: string;
-  video_source_type: "upload" | "template";
+  audio_gen_id: string | null;
+  video_source_type: "upload" | "template" | null;
   user_video_id: string | null;
   template_id: string | null;
   result_video_url: string | null;
@@ -454,8 +454,8 @@ export async function createLipSyncTask(
   supabase: SupabaseClient,
   params: {
     user_id: string;
-    audio_gen_id: string;
-    video_source_type: "upload" | "template";
+    audio_gen_id?: string | null;
+    video_source_type?: "upload" | "template";
     user_video_id?: string | null;
     template_id?: string | null;
   }

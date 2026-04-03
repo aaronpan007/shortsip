@@ -17,6 +17,7 @@ interface VideoItem {
   id: string;
   title: string;
   createdAt: string;
+  lipsyncVideoUrl?: string | null;
 }
 
 export default function MyVideosPage() {
@@ -33,10 +34,11 @@ export default function MyVideosPage() {
           (t: { status: string }) => t.status === "completed"
         );
         setVideos(
-          completedTasks.map((t: { id: string; title: string; createdAt: string }) => ({
+          completedTasks.map((t: { id: string; title: string; createdAt: string; lipsyncVideoUrl?: string | null }) => ({
             id: t.id,
             title: t.title,
             createdAt: t.createdAt,
+            lipsyncVideoUrl: t.lipsyncVideoUrl,
           }))
         );
       }
@@ -101,20 +103,24 @@ export default function MyVideosPage() {
                 <Video className="h-12 w-12 text-[#64748b] opacity-20" />
                 {/* Hover overlay */}
                 <div className="absolute inset-0 flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
-                  <a
-                    href={`/api/tasks/${video.id}/download`}
-                    target="_blank"
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
-                  >
-                    <Play className="h-5 w-5 ml-0.5" />
-                  </a>
-                  <a
-                    href={`/api/tasks/${video.id}/download`}
-                    download
-                    className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
-                  >
-                    <Download className="h-5 w-5" />
-                  </a>
+                  {video.lipsyncVideoUrl && (
+                    <>
+                      <a
+                        href={video.lipsyncVideoUrl}
+                        target="_blank"
+                        className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
+                      >
+                        <Play className="h-5 w-5 ml-0.5" />
+                      </a>
+                      <a
+                        href={video.lipsyncVideoUrl}
+                        download
+                        className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm hover:bg-white/30 transition-colors"
+                      >
+                        <Download className="h-5 w-5" />
+                      </a>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -130,22 +136,26 @@ export default function MyVideosPage() {
                   </span>
                 </div>
                 <div className="mt-3 flex items-center justify-end gap-1">
-                  <a
-                    href={`/api/tasks/${video.id}/download`}
-                    target="_blank"
-                    className="rounded-lg p-2 text-[#94a3b8] hover:bg-[rgba(255,255,255,0.06)] hover:text-white transition-all"
-                    title="预览"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </a>
-                  <a
-                    href={`/api/tasks/${video.id}/download`}
-                    download
-                    className="rounded-lg p-2 text-[#94a3b8] hover:bg-[rgba(255,255,255,0.06)] hover:text-white transition-all"
-                    title="下载"
-                  >
-                    <Download className="h-4 w-4" />
-                  </a>
+                  {video.lipsyncVideoUrl && (
+                    <>
+                      <a
+                        href={video.lipsyncVideoUrl}
+                        target="_blank"
+                        className="rounded-lg p-2 text-[#94a3b8] hover:bg-[rgba(255,255,255,0.06)] hover:text-white transition-all"
+                        title="预览"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </a>
+                      <a
+                        href={video.lipsyncVideoUrl}
+                        download
+                        className="rounded-lg p-2 text-[#94a3b8] hover:bg-[rgba(255,255,255,0.06)] hover:text-white transition-all"
+                        title="下载"
+                      >
+                        <Download className="h-4 w-4" />
+                      </a>
+                    </>
+                  )}
                   <button className="rounded-lg p-2 text-[#94a3b8] hover:bg-[rgba(255,255,255,0.06)] hover:text-white transition-all" title="复制为新任务">
                     <Copy className="h-4 w-4" />
                   </button>
